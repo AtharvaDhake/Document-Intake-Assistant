@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ChatPane from './components/ChatPane';
 import StatePane from './components/StatePane';
 import { createSession, sendMessage, getDocument, updateField, getSession } from './api';
+import html2pdf from 'html2pdf.js';
 import './App.css';
 
 function App() {
@@ -56,13 +57,17 @@ function App() {
   const handleReset = async () => {
     // 1. Download document if it exists
     if (documentText) {
-      const blob = new Blob([documentText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'personal-wishes-document.txt';
-      a.click();
-      URL.revokeObjectURL(url);
+      const element = document.getElementById('document-preview-content');
+      if (element) {
+        const opt = {
+          margin:       0.5,
+          filename:     'personal-wishes-document.pdf',
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2 },
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+      }
     }
 
     // 2. Clear state and start new session

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './StatePane.css';
 
+import html2pdf from 'html2pdf.js';
+
 const FIELD_NAMES = {
   full_name: "Full Name",
   home_address: "Home Address",
-  covers_worldwide_assets: "Covers Worldwide Assets",
   has_children: "Has Children",
   children_names: "Children's Names",
   executor_name: "Executor Name",
   executor_relationship: "Executor Relationship",
+  covers_worldwide_assets: "Covers Worldwide Assets",
   specific_gifts: "Specific Gifts",
   additional_wishes: "Additional Wishes"
 };
@@ -24,28 +26,28 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
       setActiveTab('document');
 
       if (!hasAutoDownloaded && documentText) {
-        const blob = new Blob([documentText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'personal-wishes-document.txt';
-        a.click();
-        URL.revokeObjectURL(url);
-        
+        handleDownload();
         setHasAutoDownloaded(true);
       }
     } else if (state?.status !== 'ready_for_review') {
-      // Reset if status changes away from ready_for_review
       if (hasAutoDownloaded) setHasAutoDownloaded(false);
     }
   }, [state?.status, documentText, hasAutoDownloaded]);
 
-  if (!state) return <div className="state-pane empty">Awaiting state...</div>;
+  if (!state) return (
+    <div className="state-pane" style={{ padding: '20px' }}>
+      <div style={{ height: '30px', backgroundColor: '#e0e0e0', borderRadius: '4px', marginBottom: '20px', width: '40%', animation: 'pulse 1.5s infinite' }}></div>
+      <div style={{ height: '80px', backgroundColor: '#e0e0e0', borderRadius: '8px', marginBottom: '12px', animation: 'pulse 1.5s infinite' }}></div>
+      <div style={{ height: '80px', backgroundColor: '#e0e0e0', borderRadius: '8px', marginBottom: '12px', animation: 'pulse 1.5s infinite' }}></div>
+      <div style={{ height: '80px', backgroundColor: '#e0e0e0', borderRadius: '8px', marginBottom: '12px', animation: 'pulse 1.5s infinite' }}></div>
+    </div>
+  );
 
   const fields = state.fields || {};
-  
-  const totalFields = Object.values(fields).filter(f => f.status !== 'not_applicable').length || 1;
-  const capturedFields = Object.values(fields).filter(f => f.status === 'confirmed' || f.status === 'unconfirmed').length;
+  const totalFields = Object.keys(FIELD_NAMES).length;
+  const capturedFields = Object.values(fields).filter(
+    f => f.status === 'confirmed' || f.status === 'not_applicable'
+  ).length;
   const progressPercent = Math.round((capturedFields / totalFields) * 100);
 
   const getStatusIcon = (status) => {
@@ -103,13 +105,16 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
   };
 
   const handleDownload = () => {
-    const blob = new Blob([documentText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'personal-wishes-document.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+    const element = document.getElementById('document-preview-content');
+    if (!element) return;
+    const opt = {
+      margin:       0.5,
+      filename:     'personal-wishes-document.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
   };
 
   return (
@@ -148,7 +153,7 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
             <div className="status-banner">
               Status: <span className="status-badge">{state.status?.replace(/_/g, ' ') || 'In Progress'}</span>
               {state.status === 'ready_for_review' && (
-                <button className="download-btn" onClick={handleDownload}>Download Document</button>
+                <button className="download-btn" onClick={handleDownload}>Download PDF</button>
               )}
             </div>
 
@@ -183,10 +188,11 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
                               value={editValue} 
                               onChange={(e) => setEditValue(e.target.value)}
                               autoFocus
+                              onKeyDown={(e) => e.key === 'Enter' && handleEditSave()}
                             />
                           )}
-                          <button onClick={handleEditSave} className="save-btn">Save</button>
-                          <button onClick={handleEditCancel} className="cancel-btn">Cancel</button>
+                          <button className="save-btn" onClick={handleEditSave}>Save</button>
+                          <button className="cancel-btn" onClick={handleEditCancel}>Cancel</button>
                         </div>
                       ) : (
                         <div className="field-value">
@@ -253,18 +259,13 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
             <div className="document-preview">
               {documentText ? (
                 <>
-                  <div className="document-actions" style={{textAlign: 'right', marginBottom: '10px'}}>
-                     <button onClick={handleDownload} className="download-btn">Download .TXT</button>
+                  <div className="document-actions" style={{textAlign: 'right', marginBottom: '10px', position: 'relative', zIndex: 10}}>
+                     <button onClick={handleDownload} className="download-btn">Download PDF</button>
                   </div>
-                  <div className="document-text" dangerouslySetInnerHTML={{ __html: (documentText || '')
-                    .replace(/\n? *═{10,} *\n?/g, '<hr class="legal-hr-thick" />')
-                    .replace(/\n? *─{10,} *\n?/g, '<hr class="legal-hr-thin" />')
-                    .replace(/(<hr class="legal-hr-thin" \/>)(SECTION \d+ — [^<]+)(<hr class="legal-hr-thin" \/>)/g, '<div class="legal-section-header">$1<strong class="legal-section-title">$2</strong>$3</div>')
-                    .replace(/ *PERSONAL WISHES DOCUMENT */g, '<h2 class="legal-title">PERSONAL WISHES DOCUMENT</h2>')
-                    .replace(/\n/g, '<br/>') }} />
+                  <div id="document-preview-content" className="document-text" dangerouslySetInnerHTML={{ __html: documentText.replace(/\n? *═{10,} *\n?/g, '<hr class="legal-hr-thick" />').replace(/\n? *─{10,} *\n?/g, '<hr class="legal-hr-thin" />').replace(/(<hr class="legal-hr-thin" \/>)(SECTION \d+ — [^<]+)(<hr class="legal-hr-thin" \/>)/g, '<div class="legal-section-header">$1<strong class="legal-section-title">$2</strong>$3</div>').replace(/\n/g, '<br/>') }} />
                 </>
               ) : (
-                <div className="empty-document">Document text will appear here as fields are captured.</div>
+                <div className="empty-document">Draft will appear here once ready for review.</div>
               )}
             </div>
           </div>

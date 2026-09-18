@@ -2,11 +2,11 @@
 
 **The application is live on: http://13.60.181.158**
 
-## Live Testing Script
+## 1. Live Testing Script
 
 To evaluate the system's robustness, multi-field extraction, and ambiguity handling, we recommend running this exact script in the live app:
 
-### Step 1: Multi-field Extraction
+### 1.1. Step 1: Multi-field Extraction
 
 - **What you do:** The Assistant asks for your full name.
 - **You type:** `"I'm Sarah Connor. My address is 123 Cyberdyne Blvd."`
@@ -14,7 +14,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _Notice what just happened here. The user provided multiple distinct pieces of information at once. Because we use a **Dual-Call LLM Architecture**, the backend first runs an 'Extractor' prompt to parse the raw text into a strict Pydantic JSON schema. The conversational engine sees that those fields are now populated, so it dynamically skips them and moves to the next missing priority. We aren't relying on the LLM to remember what it asked; it's driven purely by the deterministic backend state machine._
 
-### Step 2: Smart State Resolution
+### 1.2. Step 2: Smart State Resolution
 
 - **What you do:** The Assistant asks if you have children.
 - **You type:** `"Yes, I have one son. His name is John."`
@@ -22,7 +22,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _The Extractor successfully populates a string array (`children_names`) in the same turn it resolves the Boolean flag, demonstrating complex type handling._
 
-### Step 3: Ambiguity Handling & Schema Noise Reduction
+### 1.3. Step 3: Ambiguity Handling & Schema Noise Reduction
 
 - **What you do:** The Assistant asks about worldwide assets.
 - **You type:** `"I have a hidden bank account in Mexico, does that count as worldwide?"`
@@ -30,13 +30,13 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _If this was a basic ChatGPT wrapper, it would have hallucinated an entire new section in the document called "Foreign Bank Accounts" just because the user mentioned Mexico. Because our document generation is tied strictly to our defined database schema (which only tracks a Boolean for `covers_worldwide_assets`), the AI filters out the conversational noise and waits for a definitive Yes/No._
 
-### Step 4: Resolving the Ambiguity
+### 1.4. Step 4: Resolving the Ambiguity
 
 - **What you do:** The Assistant asks to clarify the assets.
 - **You type:** `"Yes, include the worldwide assets."`
 - **What happens:** The _Worldwide Assets_ field flips to ✅ Confirmed.
 
-### Step 5: Confidence States & Hesitation
+### 1.5. Step 5: Confidence States & Hesitation
 
 - **What you do:** The Assistant asks for an executor.
 - **You type:** `"I guess my friend Miles could be the executor."`
@@ -44,7 +44,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _This is a critical safety feature. If the user uses hesitation words like "maybe" or "I guess", the Extractor is instructed to pull the data but flag it as 'Unconfirmed' and log an 'Ambiguity' reason. Before the data is ever allowed to hit the final document, the system forces a conversational follow-up to resolve that ambiguity._
 
-### Step 6: Diff-Based Correction & Strict Validation
+### 1.6. Step 6: Diff-Based Correction & Strict Validation
 
 - **What you do:** The Assistant asks to clarify the executor choice.
 - **You type:** `"Actually, I changed my mind. Make my son John the executor."`
@@ -52,7 +52,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _If a user changes their mind, our Python Validator intercepts the patch. It detects a diff between the old value and the new value, logs a `CorrectionRecord`, and intentionally forces the system to re-verify the new data. You will notice the Assistant asking multiple granular questions here to ensure the correction is 100% accurate before it turns green._
 
-### Step 7: Completing the Correction Loop
+### 1.7. Step 7: Completing the Correction Loop
 
 - **What you do:** Answer the Assistant's follow-up questions to confirm the executor.
 - **You type:** `"Yess name john as the executor"` (when asked to confirm John), then `"He is my son."` (when asked for relationship).
@@ -60,7 +60,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _This double-confirmation loop is a direct result of strict field-level confidence states. When the user corrected the executor to "son John", the system extracted two distinct fields (`executor_name` and `executor_relationship`). Because it was a destructive correction, the Python validator strictly set both to 'Unconfirmed', forcing the LLM to independently verify the name and the relationship before allowing the state to proceed. This guarantees no assumptions are made when overwriting data._
 
-### Step 8: Out-of-Order Extraction
+### 1.8. Step 8: Out-of-Order Extraction
 
 - **What you do:** The Assistant asks for specific gifts.
 - **You type:** `"No other wishes, just protect the future."`
@@ -68,13 +68,13 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 - **Architectural Highlight:**
   > _Because the user answered the wrong question (providing additional wishes instead of gifts), the Extractor saved the data to the correct field (`additional_wishes`), but the State Machine realized `specific_gifts` was still missing and re-prompted the user._
 
-### Step 9: Multi-Item Arrays & Completion
+### 1.9. Step 9: Multi-Item Arrays & Completion
 
 - **What you do:** The Assistant asks for specific gifts again.
 - **You type:** `"I want to leave my motorcycle to John, and my sunglasses to the Terminator."`
 - **What happens:** The _Specific Gifts_ array correctly populates with both items, completing the required intake process. The system state updates to `ready_for_review`, which automatically switches the UI to the Draft Document tab and instantly triggers a download of your completed `.txt` document.
 
-## Project Overview
+## 2. Project Overview
 
 The Document Intake Assistant is a reliable, conversational web application designed to help users draft a fictional Personal Wishes Document.
 
@@ -82,7 +82,7 @@ Rather than relying on a fragile chat transcript to maintain context, the applic
 
 ---
 
-## Architectural Layers
+## 3. Architectural Layers
 
 The codebase enforces a strict separation of concerns, ensuring the LLM is treated as an untrusted data provider rather than the core application controller.
 
@@ -114,18 +114,18 @@ The codebase enforces a strict separation of concerns, ensuring the LLM is treat
 +-------------------------------------------------------------+
 ```
 
-### 1. User Interface (`frontend/`)
+### 3.1. User Interface (`frontend/`)
 
 A React + Vite single-page application that manages optimistic chat updates and renders a dual-pane view:
 
 - **Chat Pane:** A multi-turn conversation interface.
 - **Live State Pane:** A real-time view of the structured data, exposing explicit confidence states (Missing, Unconfirmed, Confirmed, N/A). Users can manually override fields here, completely bypassing the LLM.
 
-### 2. API Layer (`backend/app/main.py`)
+### 3.2. API Layer (`backend/app/main.py`)
 
 A thin FastAPI layer handling HTTP requests, CORS, and routing. It contains absolutely zero domain logic and acts merely as a transport layer between the React frontend and the backend engine.
 
-### 3. Conversation Engine (`backend/app/engine.py`)
+### 3.3. Conversation Engine (`backend/app/engine.py`)
 
 The core orchestrator. It manages the turn-by-turn pipeline:
 
@@ -134,46 +134,46 @@ The core orchestrator. It manages the turn-by-turn pipeline:
 3. **State Mutation:** Apply accepted patches and handle dependent fields (e.g., if `has_children` is false, `children_names` becomes N/A).
 4. **Generation:** Ask the LLM to generate the next conversational reply based on the newly validated state.
 
-### 4. LLM Client (`backend/app/llm/`)
+### 3.4. LLM Client (`backend/app/llm/`)
 
 Encapsulates the Gemini API SDK. It strictly separates interactions into two distinct calls to prevent context mixing and hallucinations.
 
-### 5. Validator (`backend/app/validation/validator.py`)
+### 3.5. Validator (`backend/app/validation/validator.py`)
 
 Pure Python functions that enforce business rules, validate data types, and gracefully detect user corrections before any data touches the core state.
 
-### 6. Document Generator (`backend/app/document_generator.py`)
+### 3.6. Document Generator (`backend/app/document_generator.py`)
 
 A deterministic templating engine that converts the structured state into the final `.txt` draft.
 
 ---
 
-## Key Engineering Decisions
+## 4. Key Engineering Decisions
 
-### Field-Level Confidence States
+### 4.1. Field-Level Confidence States
 
 Instead of a simple key-value store, every field is wrapped in a `FieldValue` object tracking its exact status (`missing`, `unconfirmed`, `confirmed`, `not_applicable`). This prevents the LLM from hallucinating final answers from vague user input. If a user says "maybe my sister", the system extracts the relationship as `unconfirmed`, and the UI displays a warning icon until explicitly verified.
 
-### The Two-Call LLM Pattern
+### 4.2. The Two-Call LLM Pattern
 
 1. **Extractor:** Runs at Temperature 0.1, forced to output strict JSON matching a Pydantic schema. It is instructed to extract _everything_ it sees, without generating conversational text.
 2. **Responder:** Runs at Temperature 0.5 to generate a natural, empathetic reply. It generates this reply based _only_ on the validated state and active ambiguities, ignoring the raw, unverified chat history.
 
-### Auto-Save & Reset
+### 4.3. Auto-Save & Reset
 
 Reviewers and users can click the "Save & Restart" button in the chat header to instantly download their current generated `.txt` document and wipe the session clean. This allows for rapid iteration and testing without needing to manually clear browser LocalStorage.
 
-### Diff-Based Corrections
+### 4.4. Diff-Based Corrections
 
 In real-world legal and medical intake, users frequently overshare information that isn't required by the form (e.g., "I have a bank account in Mexico, does that count as worldwide?"). Because the final document generation is tied strictly to the typed Pydantic schema (which only tracks a simple Boolean `True`/`False` for worldwide assets), the Extractor LLM is physically incapable of injecting hallucinated or unrequested asset lists into the final document. The system elegantly answers the user's question, extracts the required boolean, and ignores the conversational fluff, preventing the final legal document from becoming bloated with unstructured chatter.
 
-### Strict Real-LLM Enforcement
+### 4.5. Strict Real-LLM Enforcement
 
 While the project originally utilized a deterministic keyword-based Mock LLM for local development, the production codebase was deliberately stripped of it. `config.py` now hard-fails if `LLM_PROVIDER != "gemini"`. The deterministic mock logic was moved entirely into `tests/dummy_client.py` and is injected via dependency injection solely to keep the CI pipeline fast and free.
 
 ---
 
-## API Contract Reference
+## 5. API Contract Reference
 
 The system exposes a clean REST API. (Note: The field override endpoint is a divergence from the original plan, added to support direct UI editing for a vastly superior user experience).
 
@@ -190,15 +190,15 @@ The system exposes a clean REST API. (Note: The field override endpoint is a div
 
 ---
 
-## Local Setup & Development Instructions
+## 6. Local Setup & Development Instructions
 
-### Prerequisites
+### 6.1. Prerequisites
 
 - Node.js (v18+)
 - Python 3.11+
 - A valid Google Gemini API Key.
 
-### 1. Environment Configuration
+### 6.2. Environment Configuration
 
 Create a `.env` file in the root directory. This file is ignored by git.
 
@@ -208,7 +208,7 @@ LLM_PROVIDER=gemini
 ENVIRONMENT=development
 ```
 
-### 2. Backend Setup
+### 6.3. Backend Setup
 
 ```bash
 cd backend
@@ -221,7 +221,7 @@ uvicorn app.main:app --reload
 
 The API will be available at `http://localhost:8000`.
 
-### 3. Frontend Setup
+### 6.4. Frontend Setup
 
 In a new terminal:
 
@@ -235,7 +235,7 @@ The application will be available at `http://localhost:5173`.
 
 ---
 
-## Testing Strategy
+## 7. Testing Strategy
 
 To run the test suite:
 
@@ -252,7 +252,7 @@ Instead of mocking HTTP calls or using fragile prompt-matching, the tests inject
 
 ---
 
-## CI/CD and Deployment Architecture
+## 8. CI/CD and Deployment Architecture
 
 The project utilizes a fully automated CI/CD pipeline orchestrated via **GitHub Actions** (`.github/workflows/deploy.yml`), targeting AWS infrastructure.
 
@@ -279,11 +279,11 @@ The project utilizes a fully automated CI/CD pipeline orchestrated via **GitHub 
                             +-----------------+
 ```
 
-### Build & Push
+### 8.1. Build & Push
 
 On every push to the `main` branch, the pipeline builds separate Docker images for the Frontend and Backend, tags them with the git SHA, and pushes them to **Amazon ECR (Elastic Container Registry)**.
 
-### Continuous Deployment
+### 8.2. Continuous Deployment
 
 A self-hosted GitHub Actions runner residing on an **AWS EC2** instance listens for successful builds. It automatically:
 
@@ -293,10 +293,22 @@ A self-hosted GitHub Actions runner residing on an **AWS EC2** instance listens 
 
 ---
 
-## Production Roadmap
+## 9. Production Roadmap
 
-If this were scaled to a true production environment, the following architectural upgrades would be prioritized:
+While the current architecture securely and reliably demonstrates complex intake logic, migrating to a true enterprise-grade production environment would involve the following strategic upgrades:
 
-1. **Database Migration:** The current implementation uses local disk storage (`sessions_data/*.json`) to ensure sessions survive restarts without complex setup. For production scaling, this should be swapped to Redis/PostgreSQL.
-2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
-3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+### 9.1. Persistence & Data Tier Migration
+- **Relational Database Transition:** Replace the local file-based `sessions_data` store with **PostgreSQL**, leveraging SQLAlchemy or SQLModel for robust session persistence, querying, and schema migrations.
+- **Caching Layer:** Introduce **Redis** to cache LLM context and rapidly serve in-flight session state without hitting the primary database.
+
+### 9.2. Latency & User Experience
+- **WebSocket Streaming:** Transition the `/api/sessions/{id}/messages` HTTP POST endpoint to a **WebSocket protocol**. Streaming the LLM's response tokens directly to the UI will eliminate perceived latency and create a more responsive, human-like chat experience.
+- **Optimistic UI Refinements:** Implement more granular typing indicators and field-level loading states while the validator runs diff-checks in the background.
+
+### 9.3. Backend Robustness & Tooling
+- **Pydantic V2 & Instructor:** Refactor the LLM Client to utilize the `instructor` library, capitalizing on its guaranteed schema enforcement and automatic JSON-validation retry loops to further harden the extraction pipeline.
+- **Observability & APM:** Integrate Datadog or OpenTelemetry to instrument LLM response times, token usage, and API latency across the conversational pipeline.
+
+### 9.4. Security & Compliance
+- **Auth & Tenant Isolation:** Implement OAuth2 / JWT authentication (e.g., Auth0 or AWS Cognito) to isolate user sessions and securely associate legal drafts with verified user accounts.
+- **PII Scrubbing:** Add a pre-processing middleware that scrubs or masks highly sensitive Personally Identifiable Information (PII) before the payload hits the LLM context.
