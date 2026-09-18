@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    image: ${BACKEND_IMAGE:-document-intake-backend}
     build: 
       context: ./backend
       dockerfile: Dockerfile
@@ -20,6 +21,7 @@ services:
       retries: 3
 
   frontend:
+    image: ${FRONTEND_IMAGE:-document-intake-frontend}
     build:
       context: ./frontend
       dockerfile: Dockerfile
