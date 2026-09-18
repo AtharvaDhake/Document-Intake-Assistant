@@ -40,7 +40,7 @@ def validate_patch(items: list[PatchItem], state: SessionState) -> ValidationRes
             outcome.rejected.append((item, type_error))
             continue
 
-        biz_problem = _check_business_rules(item, state)
+        biz_problem = _check_business_rules(item, items, state)
         if biz_problem:
             outcome.ambiguities.append(biz_problem)
             outcome.rejected.append((item, biz_problem.reason))
@@ -88,14 +88,25 @@ def _check_type(item: PatchItem) -> str | None:
     return None
 
 
-def _check_business_rules(item: PatchItem, state: SessionState) -> Ambiguity | None:
+def _check_business_rules(item: PatchItem, items: list[PatchItem], state: SessionState) -> Ambiguity | None:
     if item.field == "children_names":
-        has_kids = state.fields.has_children
-        if has_kids.status == FieldStatus.CONFIRMED and has_kids.value is False:
-            return Ambiguity(
-                field="children_names",
-                reason="children_names provided but has_children is confirmed false",
-            )
+        # Check proposed items first
+        proposed_has_kids = next((i for i in items if i.field == "has_children"), None)
+        
+        if proposed_has_kids:
+            if proposed_has_kids.value is False and proposed_has_kids.status in ("confirmed", "unconfirmed"):
+                return Ambiguity(
+                    field="children_names",
+                    reason="children_names provided but has_children is being set to false",
+                )
+        else:
+            # Fall back to current state
+            has_kids = state.fields.has_children
+            if has_kids.status == FieldStatus.CONFIRMED and has_kids.value is False:
+                return Ambiguity(
+                    field="children_names",
+                    reason="children_names provided but has_children is confirmed false",
+                )
     return None
 
 
