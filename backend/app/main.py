@@ -41,7 +41,12 @@ def _save_session(state: SessionState):
     file_path.write_text(state.model_dump_json(), encoding="utf-8")
 
 def _load_session(session_id: str) -> SessionState | None:
-    file_path = SESSIONS_DIR / f"{session_id}.json"
+    try:
+        valid_uuid = str(uuid.UUID(session_id))
+    except ValueError:
+        return None
+        
+    file_path = SESSIONS_DIR / f"{valid_uuid}.json"
     if file_path.exists():
         data = json.loads(file_path.read_text(encoding="utf-8"))
         return SessionState(**data)
