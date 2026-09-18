@@ -132,7 +132,11 @@ def _get_session(session_id: str) -> SessionState:
 
 def _get_engine(session_id: str) -> ConversationEngine:
     if session_id not in engines:
-        raise HTTPException(status_code=404, detail="Session not found")
+        state = _load_session(session_id)
+        if not state:
+            raise HTTPException(status_code=404, detail="Session not found")
+        client = _create_llm_client()
+        engines[session_id] = ConversationEngine(client)
     return engines[session_id]
 
 def _create_llm_client():
@@ -156,6 +160,7 @@ def create_session():
     engines[state.session_id] = engine
 
     opening = engine.start_session(state)
+    _save_session(state)
 
     return {
         "session_id": state.session_id,

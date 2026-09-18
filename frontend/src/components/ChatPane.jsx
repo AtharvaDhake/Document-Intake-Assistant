@@ -24,7 +24,7 @@ const ChatPane = ({ messages, onSendMessage, isTyping, onReset }) => {
   return (
     <div className="chat-pane">
       <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Document Intake Assistant</h2><button onClick={onReset} className="reset-btn" title="Save Document and Restart Session">Save & Restart</button>
+        <h2>Document Intake Assistant</h2><button onClick={onReset} className="reset-btn" title="Restart Session">Restart</button>
       </div>
       
       <div className="chat-messages">

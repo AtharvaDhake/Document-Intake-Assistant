@@ -23,7 +23,7 @@ function App() {
             if (data) {
               setSession({
                 session_id: data.session_id,
-                state: data,
+                state: data.state,
                 conversation_log: data.conversation_log || []
               });
               const docData = await getDocument(data.session_id);
@@ -42,7 +42,7 @@ function App() {
         setSession({
           session_id: data.session_id,
           state: data.state,
-          conversation_log: [{ role: 'assistant', content: data.assistant_message }]
+          conversation_log: data.conversation_log || []
         });
       } catch (err) {
         console.error("Failed to initialize session", err);
@@ -55,22 +55,7 @@ function App() {
   }, []);
 
   const handleReset = async () => {
-    // 1. Download document if it exists
-    if (documentText) {
-      const element = document.getElementById('document-preview-content');
-      if (element) {
-        const opt = {
-          margin:       0.5,
-          filename:     'personal-wishes-document.pdf',
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2 },
-          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save();
-      }
-    }
-
-    // 2. Clear state and start new session
+    // Clear state and start new session
     setLoading(true);
     try {
       localStorage.removeItem('session_id');
@@ -79,7 +64,7 @@ function App() {
       setSession({
         session_id: data.session_id,
         state: data.state,
-        conversation_log: [{ role: 'assistant', content: data.assistant_message }]
+        conversation_log: data.conversation_log || []
       });
       setDocumentText("");
       setLastPatchedFields([]);
