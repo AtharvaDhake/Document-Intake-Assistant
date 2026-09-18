@@ -130,7 +130,7 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
             </div>
 
             <div className="status-banner">
-              Status: <span className="status-badge">{state.status.replace(/_/g, ' ')}</span>
+              Status: <span className="status-badge">{state.status?.replace(/_/g, ' ') || 'In Progress'}</span>
               {state.status === 'ready_for_review' && (
                 <button className="download-btn" onClick={handleDownload}>Download Document</button>
               )}
@@ -217,7 +217,7 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
                   <div className="document-actions" style={{textAlign: 'right', marginBottom: '10px'}}>
                      <button onClick={handleDownload} className="download-btn">Download .TXT</button>
                   </div>
-                  <div className="document-text" dangerouslySetInnerHTML={{ __html: documentText.replace(/\n/g, '<br/>') }} />
+                  <div className="document-text" dangerouslySetInnerHTML={{ __html: (documentText || '').replace(/\n/g, '<br/>') }} />
                 </>
               ) : (
                 <div className="empty-document">Document text will appear here as fields are captured.</div>
@@ -231,3 +231,4 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
 };
 
 export default StatePane;
+
