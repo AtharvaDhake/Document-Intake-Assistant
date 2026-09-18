@@ -15,14 +15,14 @@ The codebase enforces a strict separation of concerns, ensuring the LLM is treat
 
 ```mermaid
 flowchart TD
-    UI[UI: React + Vite] -->|HTTP JSON| API[API: FastAPI]
-    API --> Engine[Conversation Engine]
-    Engine --> Extractor[LLM Client: Extractor]
-    Extractor -->|Raw Patch| Validator[Validator]
+    UI["UI: React + Vite"] -->|HTTP JSON| API["API: FastAPI"]
+    API --> Engine["Conversation Engine"]
+    Engine --> Extractor["LLM Client: Extractor"]
+    Extractor -->|Raw Patch| Validator["Validator"]
     Validator -->|Validated Patch| Engine
-    Engine --> Mutate[(State Mutation)]
-    Mutate --> Responder[LLM Client: Responder]
-    Mutate --> DocGen[Document Generator]
+    Engine --> Mutate[("State Mutation")]
+    Mutate --> Responder["LLM Client: Responder"]
+    Mutate --> DocGen["Document Generator"]
 ```
 
 ### 1. User Interface (`frontend/`)
@@ -142,11 +142,11 @@ The project utilizes a fully automated CI/CD pipeline orchestrated via **GitHub 
 
 ```mermaid
 flowchart LR
-    Dev[Developer Push] --> GitHub[GitHub Actions]
-    GitHub -->|Build & Push Image| ECR[(Amazon ECR)]
-    GitHub -->|SSH / Trigger Deploy| EC2[Amazon EC2: Self-hosted Runner]
+    Dev["Developer Push"] --> GitHub["GitHub Actions"]
+    GitHub -->|Build & Push Image| ECR[("Amazon ECR")]
+    GitHub -->|SSH / Trigger Deploy| EC2["Amazon EC2: Self-hosted Runner"]
     ECR -.->|Pull Latest Image| EC2
-    EC2 -->|docker-compose up| App[Live Production Application]
+    EC2 -->|docker-compose up| App["Live Production Application"]
 ```
 
 ### Build & Push
@@ -170,3 +170,4 @@ If this were scaled to a true production environment, the following architectura
 1. **Persistent Storage:** Swap the in-memory dictionary for Redis (for ultra-fast active session state) and PostgreSQL (for persisting finalized documents and telemetry).
 2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
 3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+
