@@ -8,3 +8,6 @@ build/
 venv/
 node_modules/
 .vscode/
+
+sessions_data/
+
