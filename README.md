@@ -50,6 +50,8 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 * **What you do:** Answer the Assistant's follow-up questions to confirm the executor.
 * **You type:** `"yess"` (when asked to confirm John), then `"keep john"` (when asked to clarify again), then `"son"` (when asked for relationship).
 * **What happens:** The fields turn ✅ Confirmed one by one.
+* **Architectural Highlight:**
+> *This double-confirmation loop is a direct result of strict field-level confidence states. When the user corrected the executor to "son John", the system extracted two distinct fields (`executor_name` and `executor_relationship`). Because it was a destructive correction, the Python validator strictly set both to 'Unconfirmed', forcing the LLM to independently verify the name and the relationship before allowing the state to proceed. This guarantees no assumptions are made when overwriting data.*
 
 ### Step 8: Out-of-Order Extraction
 * **What you do:** The Assistant asks for specific gifts.
@@ -261,6 +263,7 @@ If this were scaled to a true production environment, the following architectura
 1. **Database Migration:** The current implementation uses local disk storage (`sessions_data/*.json`) to ensure sessions survive restarts without complex setup. For production scaling, this should be swapped to Redis/PostgreSQL.
 2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
 3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+
 
 
 
