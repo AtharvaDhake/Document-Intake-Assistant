@@ -13,6 +13,18 @@ Rather than relying on a fragile chat transcript to maintain context, the applic
 
 The codebase enforces a strict separation of concerns, ensuring the LLM is treated as an untrusted data provider rather than the core application controller.
 
+```mermaid
+flowchart TD
+    UI[UI: React + Vite] -->|HTTP JSON| API[API: FastAPI]
+    API --> Engine[Conversation Engine]
+    Engine --> Extractor[LLM Client: Extractor]
+    Extractor -->|Raw Patch| Validator[Validator]
+    Validator -->|Validated Patch| Engine
+    Engine --> Mutate[(State Mutation)]
+    Mutate --> Responder[LLM Client: Responder]
+    Mutate --> DocGen[Document Generator]
+```
+
 ### 1. User Interface (`frontend/`)
 A React + Vite single-page application that manages optimistic chat updates and renders a dual-pane view:
 * **Chat Pane:** A multi-turn conversation interface.
@@ -127,6 +139,15 @@ Instead of mocking HTTP calls or using fragile prompt-matching, the tests inject
 ## CI/CD and Deployment Architecture
 
 The project utilizes a fully automated CI/CD pipeline orchestrated via **GitHub Actions** (`.github/workflows/deploy.yml`), targeting AWS infrastructure.
+
+```mermaid
+flowchart LR
+    Dev[Developer Push] --> GitHub[GitHub Actions]
+    GitHub -->|Build & Push Image| ECR[(Amazon ECR)]
+    GitHub -->|SSH / Trigger Deploy| EC2[Amazon EC2: Self-hosted Runner]
+    ECR -.->|Pull Latest Image| EC2
+    EC2 -->|docker-compose up| App[Live Production Application]
+```
 
 ### Build & Push
 On every push to the `main` branch, the pipeline builds separate Docker images for the Frontend and Backend, tags them with the git SHA, and pushes them to **Amazon ECR (Elastic Container Registry)**.
