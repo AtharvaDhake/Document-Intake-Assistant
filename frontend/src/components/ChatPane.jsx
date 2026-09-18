@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './ChatPane.css';
 
-const ChatPane = ({ messages, onSendMessage, isTyping }) => {
+const ChatPane = ({ messages, onSendMessage, isTyping, onReset }) => {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
 
@@ -23,8 +23,8 @@ const ChatPane = ({ messages, onSendMessage, isTyping }) => {
 
   return (
     <div className="chat-pane">
-      <div className="chat-header">
-        <h2>Document Intake Assistant</h2>
+      <div className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Document Intake Assistant</h2><button onClick={onReset} className="reset-btn" title="Save Document and Restart Session">Save & Restart</button>
       </div>
       
       <div className="chat-messages">
@@ -69,3 +69,4 @@ const ChatPane = ({ messages, onSendMessage, isTyping }) => {
 };
 
 export default ChatPane;
+

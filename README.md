@@ -132,10 +132,10 @@ Instead of a simple key-value store, every field is wrapped in a `FieldValue` ob
 1. **Extractor:** Runs at Temperature 0.1, forced to output strict JSON matching a Pydantic schema. It is instructed to extract *everything* it sees, without generating conversational text.
 2. **Responder:** Runs at Temperature 0.5 to generate a natural, empathetic reply. It generates this reply based *only* on the validated state and active ambiguities, ignoring the raw, unverified chat history.
 
-### Diff-Based Corrections
-If a user changes their mind (e.g., "Actually, my executor is Sarah"), the system doesn't silently overwrite the database. The `validator.py` detects the value change, downgrades the field status back to `unconfirmed`, and logs a `CorrectionRecord`. This triggers the UI to show a strike-through notification and forces the LLM to explicitly acknowledge the change in its next response.
+### Auto-Save & Reset
+Reviewers and users can click the "Save & Restart" button in the chat header to instantly download their current generated `.txt` document and wipe the session clean. This allows for rapid iteration and testing without needing to manually clear browser LocalStorage.
 
-### Schema-Driven Noise Reduction
+### Diff-Based Corrections
 In real-world legal and medical intake, users frequently overshare information that isn't required by the form (e.g., "I have a bank account in Mexico, does that count as worldwide?"). Because the final document generation is tied strictly to the typed Pydantic schema (which only tracks a simple Boolean `True`/`False` for worldwide assets), the Extractor LLM is physically incapable of injecting hallucinated or unrequested asset lists into the final document. The system elegantly answers the user's question, extracts the required boolean, and ignores the conversational fluff, preventing the final legal document from becoming bloated with unstructured chatter.
 
 ### Strict Real-LLM Enforcement
@@ -256,6 +256,7 @@ If this were scaled to a true production environment, the following architectura
 1. **Database Migration:** The current implementation uses local disk storage (`sessions_data/*.json`) to ensure sessions survive restarts without complex setup. For production scaling, this should be swapped to Redis/PostgreSQL.
 2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
 3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+
 
 
 

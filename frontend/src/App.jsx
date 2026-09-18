@@ -53,6 +53,40 @@ function App() {
     initSession();
   }, []);
 
+  const handleReset = async () => {
+    // 1. Download document if it exists
+    if (documentText) {
+      const blob = new Blob([documentText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'personal-wishes-document.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 2. Clear state and start new session
+    setLoading(true);
+    try {
+      localStorage.removeItem('session_id');
+      const data = await createSession();
+      localStorage.setItem('session_id', data.session_id);
+      setSession({
+        session_id: data.session_id,
+        state: data.state,
+        conversation_log: [{ role: 'assistant', content: data.assistant_message }]
+      });
+      setDocumentText("");
+      setLastPatchedFields([]);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to reset session", err);
+      setError("Failed to start a new session.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendMessage = async (message) => {
     if (!session) return;
     setError(null);
@@ -132,11 +166,7 @@ function App() {
         This is a fictional example document for demonstration purposes only. It is not legal advice and has no legal effect.
       </div>
       <div className="panes-container">
-        <ChatPane 
-          messages={session?.conversation_log || []} 
-          onSendMessage={handleSendMessage} 
-          isTyping={isTyping} 
-        />
+        <ChatPane messages={session?.conversation_log || []} onSendMessage={handleSendMessage} isTyping={isTyping} onReset={handleReset} />
         <StatePane 
           state={session?.state} 
           documentText={documentText}
@@ -149,3 +179,4 @@ function App() {
 }
 
 export default App;
+
