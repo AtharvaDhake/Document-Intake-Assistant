@@ -110,7 +110,8 @@ class ConversationEngine:
         for c in correction_dicts:
             state.corrections.append(c)
 
-        missing = state.fields.missing_fields()
+        target_field = state.fields.next_missing_field()
+        missing = [target_field] if target_field else []
         assistant_message = self._safe_respond(
             state, all_ambiguities, missing, correction_dicts,
         )
@@ -188,3 +189,4 @@ class ConversationEngine:
             state.fields.children_names = FieldValue(
                 status=FieldStatus.MISSING,
             )
+

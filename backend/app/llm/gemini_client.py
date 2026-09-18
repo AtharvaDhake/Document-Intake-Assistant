@@ -56,7 +56,7 @@ Your job: extract structured field updates from the user's latest message, given
 RULES:
 1. Extract EVERY field mentioned in the user's message, even if it wasn't the field most recently asked about.
 2. Only extract what the user actually said — NEVER infer, guess, or make up values.
-3. If a statement is clear and unambiguous, mark it "confirmed". If it's vague, inferred, or partially stated (e.g. "maybe my sister"), you MUST STILL extract the field with status "unconfirmed".
+3. If a statement is clear and unambiguous, mark it "confirmed". If it's vague, inferred, partially stated, or uses words like "maybe", "I guess", or "probably", you MUST STILL extract the field with status "unconfirmed".
 4. If the user's answer is vague or unclear, ALSO return it as an ambiguity. Do not drop partial information — extract it as unconfirmed AND flag the ambiguity so the system can ask a follow-up.
 5. For boolean fields (has_children, covers_worldwide_assets), only accept clear yes/no — "maybe", "sort of", "I guess" are ambiguities (do not patch booleans unless clear).
 6. If the user says "my brother James", extract BOTH executor_name="James" AND executor_relationship="brother".
@@ -189,7 +189,7 @@ class GeminiLLMClient(LLMClient):
         if missing_fields:
             target_field = missing_fields[0]
             context_parts.append(f"TARGET FIELD TO ASK ABOUT: {target_field}")
-            context_parts.append(f"OTHER MISSING FIELDS (do not ask about these yet): {', '.join(missing_fields[1:])}")
+            context_parts.append(f"")
         else:
             context_parts.append("ALL REQUIRED FIELDS ARE COMPLETE.")
 
@@ -205,5 +205,6 @@ class GeminiLLMClient(LLMClient):
             ),
         )
         return response.text.strip()
+
 
 
