@@ -1,136 +1,76 @@
 # Document Intake Assistant
 
-A conversational AI application that interviews users to gather information for a **Personal Wishes Document**. Built with Python/FastAPI backend, React frontend, and Gemini 3.5 Flash Lite for natural language understanding.
+**The application is live on: http://13.60.181.158**
 
-> **⚠️ Disclaimer:** This is a fictional example document for demonstration purposes only. It is not legal advice and has no legal effect.
+## Project Summary
+The Document Intake Assistant is a conversational web application designed to help users draft a fictional Personal Wishes Document. Rather than relying on a fragile chat transcript, the application employs a reliability-first architecture where an explicit, strictly typed state object acts as the single source of truth, updated incrementally via LLM-driven structured extraction and deterministic business logic validation.
 
-## Architecture
+## Architecture Overview
+The codebase enforces a strict separation of concerns, ensuring the LLM is treated as an untrusted data provider rather than the core application controller.
 
-```
-Frontend (React + Vite)          ← Chat pane + live preview pane
-    │  REST/JSON
-API Layer (FastAPI)              ← Thin controllers, no business logic
-    │
-Conversation Engine              ← Orchestrates: extract → validate → apply → respond
-    │                │
-LLM Client          Document Generator  ← State → draft text (pure templating)
-    │
-Gemini 3.5 Flash Lite  OR  Deterministic Mock  ← Swappable via env var
-```
+* **UI (`frontend/`)**: React + Vite SPA. Manages optimistic chat updates and renders a dual-pane view (Chat vs. Live Document).
+* **API (`backend/app/main.py`)**: FastAPI layer handling HTTP requests and CORS. Contains zero domain logic.
+* **Conversation Engine (`backend/app/engine.py`)**: The orchestrator. It manages the turn-by-turn pipeline: extraction → validation → state mutation → generation. Includes exponential backoff retries using `tenacity`.
+* **LLM Client (`backend/app/llm/`)**: Encapsulates the Gemini API SDK. Splits interactions into two distinct calls (Extraction vs. Responding).
+* **Validator (`backend/app/validation/validator.py`)**: Pure Python functions that enforce business rules (e.g., rejecting children's names if `has_children` is false) and detect user corrections.
+* **Document Generator (`backend/app/document_generator.py`)**: A deterministic templating engine that converts the structured state into the final `.txt` draft.
 
-### Key Design Decisions
+## Key Design Decisions
 
-1. **Every field has a status** (`missing` / `unconfirmed` / `confirmed` / `not_applicable`) — not just a value. This makes the system trustworthy and transparent.
+* **Field-Level Confidence States:** Instead of a simple key-value store, every field is wrapped in a `FieldValue` object tracking its status (`missing`, `unconfirmed`, `confirmed`, `not_applicable`). This prevents the LLM from hallucinating final answers from vague user input.
+* **The Two-Call LLM Pattern:** 
+  1. **Extractor:** Runs at Temperature 0.1, forced to output strict JSON matching a Pydantic schema.
+  2. **Responder:** Runs at Temperature 0.5 to generate a natural, empathetic reply based on the *validated* state, not the raw chat history.
+* **Diff-Based Corrections:** If a user changes their mind (e.g., "Actually, my executor is Sarah"), the system doesn't silently overwrite the database. The `validator.py` detects the value change, downgrades the field status back to `unconfirmed`, and logs a `CorrectionRecord`. This triggers the UI to show a strike-through notification and forces the LLM to explicitly acknowledge the change.
+* **Strict Real-LLM Enforcement (No Mock Mode):** While the project originally used a deterministic keyword-based Mock LLM for local development, the production codebase was deliberately stripped of it. `config.py` now hard-fails if `LLM_PROVIDER != "gemini"`. The deterministic mock logic was moved entirely into `tests/dummy_client.py` and injected via dependency injection to keep the CI pipeline fast and free.
 
-2. **Two distinct LLM calls per turn** — Extractor (structured JSON, low temperature) and Responder (natural language). The Responder never sees raw model output, only validated state. This structurally prevents hallucinated facts from reaching the user.
+## API Contract (Divergence Noted)
+* `POST /api/sessions`: Initialize a session.
+* `POST /api/sessions/{id}/messages`: Submit a chat turn.
+* `GET /api/sessions/{id}`: Poll current state.
+* `GET /api/sessions/{id}/document`: Get the formatted draft text.
+* `POST /api/sessions/{id}/fields/{field_name}`: **(Divergence from plan)** I added a dedicated endpoint to manually override fields directly from the UI pane, bypassing the LLM entirely for a better UX.
 
-3. **The LLM never writes directly to state.** Every model output is a *proposal* that passes through a validator before anything changes.
+## Setup and Run Instructions
 
-4. **Mock LLM client** — fully functional, deterministic, keyword-based. Proves the architecture works without any API key. Toggle with one env var.
+### Backend
+1. `cd backend`
+2. `python -m venv venv`
+3. Activate venv: `source venv/bin/activate` (Mac/Linux) or `venv\Scripts\activate` (Windows)
+4. `pip install -r requirements.txt`
+5. Create a `.env` file in the root directory (see Secrets below).
+6. Run the server: `uvicorn app.main:app --reload` (Runs on port 8000).
 
-## Quick Start
+### Frontend
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev` (Runs on port 5173).
 
-### Prerequisites
+## Environment Variables / Secrets
+The application requires the following environment variables. A `.env` file should be placed in the project root (note: `.env` is safely covered in `.gitignore`).
 
-- Python 3.11+
-- Node.js 18+
+* `GEMINI_API_KEY`: Your Google Gemini API key.
+* `LLM_PROVIDER`: Must be set to `gemini`.
 
-### Backend Setup
-
+## Running the Tests
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # macOS/Linux
-
-pip install -r requirements.txt
-
-# Copy env template and configure
-copy ..\.env.example .env     # Windows
-# cp ../.env.example .env     # macOS/Linux
-
-# Run with mock LLM (no API key needed)
-set LLM_PROVIDER=mock         # Windows
-# export LLM_PROVIDER=mock    # macOS/Linux
-
-uvicorn app.main:app --reload --port 8000
+venv\Scripts\pytest tests/ -v
 ```
+The test suite consists of **48 unit and integration tests**. I chose to aggressively test the `validator.py` and `engine.py` state machines using a dependency-injected `DummyLLMClient`. This guarantees that our business logic, correction detection, and dependency cascading (e.g., `has_children=False`) work flawlessly without incurring LLM API costs or dealing with non-deterministic test flakes.
 
-### Frontend Setup
+## CI/CD Pipeline
+The project utilizes a fully automated CI/CD pipeline via **GitHub Actions**.
+On every push to `main`:
+1. **Build & Push:** Docker images for the frontend and backend are built and pushed to **Amazon ECR**.
+2. **Deploy:** A self-hosted GitHub Actions runner on an **AWS EC2** instance pulls the latest images and orchestrates them via `docker-compose`. Environment variables are injected securely at runtime via GitHub Secrets.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Known Limitations
+* **In-Memory State:** Sessions are stored in a python dictionary in `main.py`. If the server restarts, all active sessions are lost.
+* **No Authentication:** Anyone with the URL can create a session.
+* **Memory Leaks:** While a background task cleans up sessions older than 24 hours, a high-traffic attack could OOM the server.
 
-Open http://localhost:5173 in your browser.
-
-### Using Real Gemini API
-
-```bash
-set LLM_PROVIDER=gemini
-set GEMINI_API_KEY=your-api-key-here
-uvicorn app.main:app --reload --port 8000
-```
-
-Get an API key at https://aistudio.google.com/apikey
-
-## Switching Mock ↔ Real LLM
-
-Set the `LLM_PROVIDER` environment variable:
-
-| Value | Behavior |
-|---|---|
-| `mock` | Deterministic keyword/regex-based extraction. No API key needed. Fully demonstrates the architecture. |
-| `gemini` | Real Gemini 3.5 Flash Lite via google-genai SDK. Requires `GEMINI_API_KEY`. |
-
-The mock client uses pattern matching (regex) instead of AI, but follows the exact same interface contract — proving the LLM is a genuinely isolated architectural seam.
-
-## API Endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/sessions` | Create a new session |
-| `POST` | `/api/sessions/{id}/messages` | Send user message, get response |
-| `GET` | `/api/sessions/{id}` | Get current session state |
-| `GET` | `/api/sessions/{id}/document` | Get draft document text |
-| `POST` | `/api/sessions/{id}/fields/{name}` | Direct field override (bypasses LLM) |
-
-## Running Tests
-
-```bash
-cd backend
-pytest tests/ -v
-```
-
-### Test Suite Overview
-
-| Test File | What It Tests | Why It Exists |
-|---|---|---|
-| `test_models.py` | Field status, progress counting, completion logic, priority ordering | Core data model correctness — everything else depends on this |
-| `test_validator.py` | Type checking, business rules, partial patch acceptance, correction detection | Validator is the safety layer between LLM output and state — must be bulletproof |
-| `test_document_generator.py` | Full/partial/empty state rendering, placeholder logic | Document output must always be readable regardless of completion state |
-| `test_engine.py` | Turn orchestration, multi-field extraction, corrections, ambiguities, completion | The engine is the most complex component — integration-tests the full pipeline |
-| `test_api.py` | Response shapes, error codes, end-to-end conversation flow | Ensures the HTTP contract matches what the frontend expects |
-
-## Project Structure
-
-```
-backend/
-  app/
-    models/          ← Data models: fields, patches, session state
-    validation/      ← Patch validator with type + business rule checks
-    llm/             ← LLM client interface + Gemini + Mock implementations
-    engine.py        ← Conversation engine (turn orchestration)
-    document_generator.py  ← State → draft document (pure templating)
-    main.py          ← FastAPI application
-    config.py        ← Environment configuration
-  tests/             ← Focused test suite (~30 tests)
-
-frontend/
-  src/
-    components/      ← ChatPane, StatePane
-    api.js           ← API client
-    App.jsx          ← Main layout
-```
+## What I'd Improve for Production
+1. **Persistent Storage:** Swap the in-memory dictionary for Redis (for active session state) and PostgreSQL (for finalized documents).
+2. **WebSocket Streaming:** Replace the standard POST request for messages with WebSockets. Streaming the LLM's tokens directly to the UI dramatically improves perceived latency.
+3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing with the `instructor` library for guaranteed schema validation and automatic LLM retries on schema mismatches.
