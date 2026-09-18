@@ -61,6 +61,7 @@ RULES:
 5. For boolean fields (has_children, covers_worldwide_assets), only accept clear yes/no — "maybe", "sort of", "I guess" are ambiguities (do not patch booleans unless clear).
 6. If the user says "my brother James", extract BOTH executor_name="James" AND executor_relationship="brother".
 7. If the user provides contradictory info, extract as unconfirmed AND flag as an ambiguity.
+8. Do NOT extract conversational questions or general assets as `specific_gifts`. A specific gift must explicitly describe an item being left or given to a specific person (e.g., "leave my car to John").
 
 VALID FIELDS: full_name, home_address, covers_worldwide_assets, has_children, children_names, executor_name, executor_relationship, specific_gifts, additional_wishes
 
