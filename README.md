@@ -72,7 +72,7 @@ To evaluate the system's robustness, multi-field extraction, and ambiguity handl
 
 - **What you do:** The Assistant asks for specific gifts again.
 - **You type:** `"I want to leave my motorcycle to John, and my sunglasses to the Terminator."`
-- **What happens:** The _Specific Gifts_ array correctly populates with both items, completing the required intake process. The system state updates to `ready_for_review`, which automatically switches the UI to the Draft Document tab and instantly triggers a download of your completed `.txt` document.
+- **What happens:** The _Specific Gifts_ array correctly populates with both items, completing the required intake process. The system state updates to `ready_for_review`, which automatically switches the UI to the Draft Document tab and instantly triggers a download of your completed `.pdf` document.
 
 ## 2. Project Overview
 
@@ -144,7 +144,7 @@ Pure Python functions that enforce business rules, validate data types, and grac
 
 ### 3.6. Document Generator (`backend/app/document_generator.py`)
 
-A deterministic templating engine that converts the structured state into the final `.txt` draft.
+A deterministic templating engine that converts the structured state into the final `.pdf` draft.
 
 ---
 
@@ -161,7 +161,7 @@ Instead of a simple key-value store, every field is wrapped in a `FieldValue` ob
 
 ### 4.3. Auto-Save & Reset
 
-Reviewers and users can click the "Save & Restart" button in the chat header to instantly download their current generated `.txt` document and wipe the session clean. This allows for rapid iteration and testing without needing to manually clear browser LocalStorage.
+Reviewers and users can click the "Save & Restart" button in the chat header to instantly download their current generated `.pdf` document and wipe the session clean. This allows for rapid iteration and testing without needing to manually clear browser LocalStorage.
 
 ### 4.4. Diff-Based Corrections
 

@@ -24,15 +24,22 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
   useEffect(() => {
     if (state?.status === 'ready_for_review') {
       setActiveTab('document');
+    }
+  }, [state?.status]);
 
+  useEffect(() => {
+    if (state?.status === 'ready_for_review' && activeTab === 'document') {
       if (!hasAutoDownloaded && documentText) {
-        handleDownload();
-        setHasAutoDownloaded(true);
+        // Adding a tiny delay guarantees the DOM has painted the element
+        setTimeout(() => {
+          handleDownload();
+          setHasAutoDownloaded(true);
+        }, 100);
       }
     } else if (state?.status !== 'ready_for_review') {
       if (hasAutoDownloaded) setHasAutoDownloaded(false);
     }
-  }, [state?.status, documentText, hasAutoDownloaded]);
+  }, [state?.status, documentText, activeTab, hasAutoDownloaded]);
 
   if (!state) return (
     <div className="state-pane" style={{ padding: '20px' }}>
