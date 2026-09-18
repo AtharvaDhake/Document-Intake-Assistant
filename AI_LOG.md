@@ -109,6 +109,19 @@ This is the clearest demonstration of why the validator layer exists. Prompt ins
 
 ---
 
+### 8. Self-Correction & Refactoring Phase
+
+During a final review pass before submission, three architectural shortcuts were identified and fixed to harden the system:
+
+1. **Fragile JSON Parsing:** The `json.loads()` call in `gemini_client.py` was vulnerable to the model accidentally outputting Markdown backticks (````json ... ````), which would cause a crash.
+   *Fix:* Implemented a robust markdown-stripping pre-parser before deserialization.
+2. **In-Memory State Loss:** `main.py` was storing session data in a global Python dictionary.
+   *Fix:* Refactored `main.py` to use a localized, disk-backed JSON store (`sessions_data/`). This ensures sessions survive server restarts and allows for easier migration to a real DB volume later.
+3. **Implicit Routing in Prompts:** The Responder prompt was given a list of all missing fields and told to "Ask about ONE missing field...". Delegating application routing to an LLM is an anti-pattern.
+   *Fix:* Modified `engine.py` to deterministically calculate the *target field* and pass it directly to the prompt context (`TARGET FIELD TO ASK ABOUT: ...`), removing the decision-making burden from the LLM entirely.
+
+---
+
 ## Final Prompt Versions (Verbatim)
 
 ### Extractor System Prompt (Call A — Temperature 0.1)
@@ -151,3 +164,4 @@ RULES:
 - The decision to use two separate LLM calls (that came from observing the hallucination bug firsthand, not from a prompt)
 - The field-level confidence state model (`FieldValue` wrapper) — the AI's first output was wrong, this was a deliberate design correction
 - The validator business rules — written by hand to be deterministic and testable regardless of LLM output
+

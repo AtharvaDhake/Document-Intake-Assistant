@@ -75,7 +75,7 @@ RESPONDER_SYSTEM_PROMPT = """You are a warm, professional assistant helping some
 
 RULES:
 1. Acknowledge what was just captured, briefly.
-2. Ask about ONE missing field at a time, following this priority: full_name, home_address, has_children, children_names (if applicable), covers_worldwide_assets, executor_name, executor_relationship, specific_gifts, additional_wishes.
+2. Ask about the specific TARGET FIELD provided in the context below. Do not ask about other fields.
 3. Keep responses to 1-3 sentences. Be warm but concise.
 4. NEVER state a fact about the user — only ask or confirm what they told you.
 5. If there are ambiguities, ask for clarification instead of moving on.
@@ -139,7 +139,14 @@ class GeminiLLMClient(LLMClient):
             ),
         )
 
-        payload = json.loads(response.text)
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        payload = json.loads(text.strip())
         
         patch_items = [
             PatchItem(
@@ -180,7 +187,9 @@ class GeminiLLMClient(LLMClient):
             context_parts.append(f"AMBIGUITIES TO CLARIFY: {amb_text}")
 
         if missing_fields:
-            context_parts.append(f"FIELDS STILL MISSING: {', '.join(missing_fields)}")
+            target_field = missing_fields[0]
+            context_parts.append(f"TARGET FIELD TO ASK ABOUT: {target_field}")
+            context_parts.append(f"OTHER MISSING FIELDS (do not ask about these yet): {', '.join(missing_fields[1:])}")
         else:
             context_parts.append("ALL REQUIRED FIELDS ARE COMPLETE.")
 
@@ -196,3 +205,5 @@ class GeminiLLMClient(LLMClient):
             ),
         )
         return response.text.strip()
+
+

@@ -29,7 +29,25 @@ structlog.configure(
 )
 logger = structlog.get_logger()
 
-sessions: dict[str, SessionState] = {}
+import os
+import json
+from pathlib import Path
+
+SESSIONS_DIR = Path("sessions_data")
+SESSIONS_DIR.mkdir(exist_ok=True)
+
+def _save_session(state: SessionState):
+    file_path = SESSIONS_DIR / f"{state.session_id}.json"
+    file_path.write_text(state.model_dump_json(), encoding="utf-8")
+
+def _load_session(session_id: str) -> SessionState | None:
+    file_path = SESSIONS_DIR / f"{session_id}.json"
+    if file_path.exists():
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+        return SessionState(**data)
+    return None
+
+engines: dict[str, ConversationEngine] = {}
 engines: dict[str, ConversationEngine] = {}
 
 async def cleanup_old_sessions():
@@ -107,9 +125,10 @@ class DocumentResponse(BaseModel):
 
 
 def _get_session(session_id: str) -> SessionState:
-    if session_id not in sessions:
+    state = _load_session(session_id)
+    if not state:
         raise HTTPException(status_code=404, detail="Session not found")
-    return sessions[session_id]
+    return state
 
 def _get_engine(session_id: str) -> ConversationEngine:
     if session_id not in engines:
@@ -129,10 +148,11 @@ def create_session():
     """Create a new session and return the opening message."""
     state = SessionState()
     state.updated_at = datetime.now(timezone.utc)
+    _save_session(state)
     client = _create_llm_client()
     engine = ConversationEngine(client)
 
-    sessions[state.session_id] = state
+    _save_session(state)
     engines[state.session_id] = engine
 
     opening = engine.start_session(state)
@@ -155,6 +175,7 @@ def send_message(session_id: str, req: MessageRequest):
 
     turn_output = engine.process_turn(state, req.message)
     state.updated_at = datetime.now(timezone.utc)
+    _save_session(state)
 
     return {
         "session_id": session_id,
@@ -224,6 +245,7 @@ def override_field(session_id: str, field_name: str, req: FieldOverrideRequest):
             )
 
     state.updated_at = datetime.now(timezone.utc)
+    _save_session(state)
 
     # Check completion
     if state.fields.is_complete():
@@ -252,3 +274,5 @@ def override_field(session_id: str, field_name: str, req: FieldOverrideRequest):
         "ambiguities": [],
         "corrections": []
     }
+
+

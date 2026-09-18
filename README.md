@@ -192,13 +192,9 @@ A self-hosted GitHub Actions runner residing on an **AWS EC2** instance listens 
 
 ---
 
-## Known Limitations
-* **In-Memory State:** Sessions are currently stored in a Python dictionary in `main.py`. If the server restarts or scales horizontally, all active sessions are lost.
-* **No Authentication:** Anyone with the URL can create a session and generate a document.
-* **Memory Constraints:** While a background asyncio task aggressively cleans up sessions older than 24 hours, a high-traffic attack could theoretically OOM the server.
-
 ## Production Roadmap
 If this were scaled to a true production environment, the following architectural upgrades would be prioritized:
-1. **Persistent Storage:** Swap the in-memory dictionary for Redis (for ultra-fast active session state) and PostgreSQL (for persisting finalized documents and telemetry).
+1. **Database Migration:** The current implementation uses local disk storage (`sessions_data/*.json`) to ensure sessions survive restarts without complex setup. For production scaling, this should be swapped to Redis/PostgreSQL.
 2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
 3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+
