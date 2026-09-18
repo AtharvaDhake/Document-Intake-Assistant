@@ -262,11 +262,20 @@
   letter-spacing: 2px;
 }
 
+.legal-section-header {
+  margin: 30px 0 20px 0;
+}
+
+.legal-section-header .legal-hr-thin {
+  margin: 5px 0;
+}
+
 .legal-section-title {
   display: block;
+  text-align: center;
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 10px 0;
+  margin: 0;
 }
 
 .empty-document {

@@ -234,10 +234,10 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
                      <button onClick={handleDownload} className="download-btn">Download .TXT</button>
                   </div>
                   <div className="document-text" dangerouslySetInnerHTML={{ __html: (documentText || '')
-                    .replace(/═{10,}/g, '<hr class="legal-hr-thick" />')
-                    .replace(/─{10,}/g, '<hr class="legal-hr-thin" />')
-                    .replace(/(SECTION \d+ — [^\n]+)/g, '<strong class="legal-section-title">$1</strong>')
-                    .replace(/PERSONAL WISHES DOCUMENT/g, '<h2 class="legal-title">PERSONAL WISHES DOCUMENT</h2>')
+                    .replace(/\n* *═{10,} *\n*/g, '<hr class="legal-hr-thick" />')
+                    .replace(/\n* *─{10,} *\n*/g, '<hr class="legal-hr-thin" />')
+                    .replace(/(<hr class="legal-hr-thin" \/>)(SECTION \d+ — [^\n]+)(<hr class="legal-hr-thin" \/>)/g, '<div class="legal-section-header">$1<strong class="legal-section-title">$2</strong>$3</div>')
+                    .replace(/ *PERSONAL WISHES DOCUMENT */g, '<h2 class="legal-title">PERSONAL WISHES DOCUMENT</h2>')
                     .replace(/\n/g, '<br/>') }} />
                 </>
               ) : (

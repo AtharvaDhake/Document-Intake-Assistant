@@ -60,13 +60,10 @@ class SessionFields(BaseModel):
 
     def is_complete(self) -> bool:
         entries = self.as_dict()
-        for name in REQUIRED_FIELDS:
-            if entries[name].status != FieldStatus.CONFIRMED:
+        for name in FIELD_PRIORITY:
+            status = entries[name].status
+            if status not in (FieldStatus.CONFIRMED, FieldStatus.NOT_APPLICABLE):
                 return False
-        if (self.has_children.status == FieldStatus.CONFIRMED
-                and self.has_children.value
-                and self.children_names.status != FieldStatus.CONFIRMED):
-            return False
         return True
 
     def next_missing_field(self) -> str | None:
