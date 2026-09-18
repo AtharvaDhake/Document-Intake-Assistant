@@ -44,6 +44,8 @@ def test_is_complete_without_children():
         children_names=FieldValue(status=FieldStatus.NOT_APPLICABLE),
         executor_name=FieldValue(value="James Smith", status=FieldStatus.CONFIRMED),
         executor_relationship=FieldValue(value="brother", status=FieldStatus.CONFIRMED),
+        specific_gifts=FieldValue(status=FieldStatus.NOT_APPLICABLE),
+        additional_wishes=FieldValue(status=FieldStatus.NOT_APPLICABLE),
     )
     assert fields.is_complete()
 
@@ -56,6 +58,8 @@ def test_is_complete_requires_children_names_when_has_children():
         has_children=FieldValue(value=True, status=FieldStatus.CONFIRMED),
         executor_name=FieldValue(value="James Smith", status=FieldStatus.CONFIRMED),
         executor_relationship=FieldValue(value="brother", status=FieldStatus.CONFIRMED),
+        specific_gifts=FieldValue(status=FieldStatus.NOT_APPLICABLE),
+        additional_wishes=FieldValue(status=FieldStatus.NOT_APPLICABLE),
     )
     assert not fields.is_complete()
 

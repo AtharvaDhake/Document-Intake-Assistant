@@ -29,54 +29,62 @@ def generate_document(fields: SessionFields) -> str:
     executor_name = _render(fields.executor_name, "executor name")
     executor_rel = _render(fields.executor_relationship, "executor relationship")
 
-    # Worldwide Assets section
-    if fields.covers_worldwide_assets.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
-        ww_val = fields.covers_worldwide_assets.value
+def _build_worldwide_section(field_value) -> str:
+    if field_value.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
+        ww_val = field_value.value
         if ww_val:
-            worldwide_text = "This document is intended to cover all of my assets worldwide, regardless of jurisdiction."
+            text = "This document is intended to cover all of my assets worldwide, regardless of jurisdiction."
         else:
-            worldwide_text = "This document is restricted to assets within my primary jurisdiction and does not cover worldwide assets."
+            text = "This document is restricted to assets within my primary jurisdiction and does not cover worldwide assets."
     else:
-        worldwide_text = "Worldwide assets coverage: [not yet provided]"
+        text = "Worldwide assets coverage: [not yet provided]"
         
-    worldwide_section = (
+    return (
         "───────────────────────────────────────────────────────\n"
         "SECTION 2 — ASSETS SCOPE\n"
         "───────────────────────────────────────────────────────\n\n"
-        f"{worldwide_text}"
+        f"{text}"
     )
 
-    # Children section
-    if (fields.has_children.status == FieldStatus.CONFIRMED
-            and fields.has_children.value is True):
-        children = _render(fields.children_names, "children's names")
-        children_section = f"I have children. Their names are: {children}."
-    elif (fields.has_children.status == FieldStatus.CONFIRMED
-            and fields.has_children.value is False):
-        children_section = "I do not have children."
-    else:
-        children_section = f"Children: [{has_children}]."
+def _build_children_section(has_children_field, children_names_field) -> str:
+    if has_children_field.status == FieldStatus.CONFIRMED and has_children_field.value is True:
+        children = _render(children_names_field, "children's names")
+        return f"I have children. Their names are: {children}."
+    elif has_children_field.status == FieldStatus.CONFIRMED and has_children_field.value is False:
+        return "I do not have children."
+    
+    has_children_text = _render(has_children_field, "children status")
+    return f"Children: [{has_children_text}]."
 
-    # Gifts section
-    if fields.specific_gifts.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
-        gifts = fields.specific_gifts.value
+def _build_gifts_section(specific_gifts_field) -> str:
+    if specific_gifts_field.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
+        gifts = specific_gifts_field.value
         if gifts:
             gift_lines = "\n".join(f"  • {g}" for g in gifts)
-            gifts_section = f"I would like to make the following specific gifts:\n{gift_lines}"
-        else:
-            gifts_section = "I have no specific gifts to declare at this time."
-    else:
-        gifts_section = "Specific gifts: [not yet provided]."
+            return f"I would like to make the following specific gifts:\n{gift_lines}"
+        return "I have no specific gifts to declare at this time."
+    return "Specific gifts: [not yet provided]."
 
-    # Additional wishes
-    if fields.additional_wishes.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
-        wishes = fields.additional_wishes.value
+def _build_wishes_section(additional_wishes_field) -> str:
+    if additional_wishes_field.status in (FieldStatus.CONFIRMED, FieldStatus.UNCONFIRMED):
+        wishes = additional_wishes_field.value
         if wishes:
-            wishes_section = f"Additional wishes:\n{wishes}"
-        else:
-            wishes_section = "I have no additional wishes to declare at this time."
-    else:
-        wishes_section = "Additional wishes: [not yet provided]."
+            return f"Additional wishes:\n{wishes}"
+        return "I have no additional wishes to declare at this time."
+    return "Additional wishes: [not yet provided]."
+
+
+def generate_document(fields: SessionFields) -> str:
+
+    full_name = _render(fields.full_name, "full name")
+    home_address = _render(fields.home_address, "home address")
+    executor_name = _render(fields.executor_name, "executor name")
+    executor_rel = _render(fields.executor_relationship, "executor relationship")
+
+    worldwide_section = _build_worldwide_section(fields.covers_worldwide_assets)
+    children_section = _build_children_section(fields.has_children, fields.children_names)
+    gifts_section = _build_gifts_section(fields.specific_gifts)
+    wishes_section = _build_wishes_section(fields.additional_wishes)
 
     document = f"""═══════════════════════════════════════════════════════
               PERSONAL WISHES DOCUMENT
