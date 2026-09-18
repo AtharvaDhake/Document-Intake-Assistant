@@ -222,6 +222,29 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
                 ))}
               </div>
             )}
+
+            <div className="json-output-section" style={{ marginTop: '32px' }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Raw JSON Data</h3>
+              <pre style={{
+                backgroundColor: '#282c34', 
+                color: '#abb2bf', 
+                padding: '16px', 
+                borderRadius: '8px', 
+                overflowX: 'auto',
+                fontSize: '0.9rem'
+              }}>
+                {JSON.stringify(
+                  Object.keys(fields).reduce((acc, key) => {
+                    if (fields[key].status === 'confirmed' || fields[key].status === 'unconfirmed') {
+                      acc[key] = fields[key].value;
+                    }
+                    return acc;
+                  }, {}), 
+                  null, 
+                  2
+                )}
+              </pre>
+            </div>
           </div>
         )}
 
