@@ -17,12 +17,28 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
   const [activeTab, setActiveTab] = useState('data');
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [hasAutoDownloaded, setHasAutoDownloaded] = useState(false);
 
   useEffect(() => {
     if (state?.status === 'ready_for_review') {
       setActiveTab('document');
+
+      if (!hasAutoDownloaded && documentText) {
+        const blob = new Blob([documentText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'personal-wishes-document.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        setHasAutoDownloaded(true);
+      }
+    } else if (state?.status !== 'ready_for_review') {
+      // Reset if status changes away from ready_for_review
+      if (hasAutoDownloaded) setHasAutoDownloaded(false);
     }
-  }, [state?.status]);
+  }, [state?.status, documentText, hasAutoDownloaded]);
 
   if (!state) return <div className="state-pane empty">Awaiting state...</div>;
 
@@ -217,7 +233,12 @@ const StatePane = ({ state, documentText, onUpdateField, lastPatchedFields = [] 
                   <div className="document-actions" style={{textAlign: 'right', marginBottom: '10px'}}>
                      <button onClick={handleDownload} className="download-btn">Download .TXT</button>
                   </div>
-                  <div className="document-text" dangerouslySetInnerHTML={{ __html: (documentText || '').replace(/\n/g, '<br/>') }} />
+                  <div className="document-text" dangerouslySetInnerHTML={{ __html: (documentText || '')
+                    .replace(/═{10,}/g, '<hr class="legal-hr-thick" />')
+                    .replace(/─{10,}/g, '<hr class="legal-hr-thin" />')
+                    .replace(/(SECTION \d+ — [^\n]+)/g, '<strong class="legal-section-title">$1</strong>')
+                    .replace(/PERSONAL WISHES DOCUMENT/g, '<h2 class="legal-title">PERSONAL WISHES DOCUMENT</h2>')
+                    .replace(/\n/g, '<br/>') }} />
                 </>
               ) : (
                 <div className="empty-document">Document text will appear here as fields are captured.</div>

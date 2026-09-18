@@ -218,22 +218,55 @@
 /* Document Tab */
 .document-tab {
   height: 100%;
+  background-color: #e5e5e5;
+  padding: 40px 20px;
+  overflow-y: auto;
 }
 
 .document-preview {
   background-color: white;
-  padding: 32px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  min-height: 100%;
-  border: 1px solid var(--border-color);
+  padding: 60px 70px;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 0 2px rgba(0,0,0,0.1);
+  min-height: 842px; /* Standard A4 proportion */
+  max-width: 700px;
+  margin: 0 auto;
+  position: relative;
 }
 
 .document-text {
   font-family: 'Times New Roman', Times, serif;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   line-height: 1.8;
-  color: #000;
+  color: #222;
+  text-align: justify;
+}
+
+.legal-hr-thick {
+  border: none;
+  border-top: 3px solid #222;
+  margin: 10px 0;
+}
+
+.legal-hr-thin {
+  border: none;
+  border-top: 1px solid #222;
+  margin: 10px 0;
+}
+
+.legal-title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.legal-section-title {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 10px 0;
 }
 
 .empty-document {
