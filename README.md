@@ -127,8 +127,7 @@ The application will be available at `http://localhost:5173`.
 To run the test suite:
 ```bash
 cd backend
-# Ensure your venv is activated
-pytest tests/ -v
+# Activate venv first:`r`n# Windows: venv\Scripts\activate`r`n# Mac/Linux: source venv/bin/activate`r`npytest tests/ -v
 ```
 
 The suite consists of **48 unit and integration tests**. 
@@ -170,4 +169,5 @@ If this were scaled to a true production environment, the following architectura
 1. **Persistent Storage:** Swap the in-memory dictionary for Redis (for ultra-fast active session state) and PostgreSQL (for persisting finalized documents and telemetry).
 2. **WebSocket Streaming:** Replace the standard HTTP POST polling for messages with WebSockets. Streaming the LLM's response tokens directly to the UI dramatically improves perceived latency and user trust.
 3. **Pydantic V2 Instructor:** Replace the manual `json.loads` parsing in the Gemini client with the `instructor` library, leveraging its guaranteed schema validation and automatic LLM retry loops for schema mismatches.
+
 

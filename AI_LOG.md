@@ -1,38 +1,117 @@
 # AI Log: Building the Document Intake Assistant
 
-This log details how AI tools (Google DeepMind's Antigravity coding assistant) were used to build this project. Rather than a polished PR document, this is a candid recount of the iterations, the prompts used, and specifically where the AI got things wrong and had to be corrected.
-
-## 1. Project Initialization & Scaffolding
-**What was asked:** "Generate a Pydantic schema for a Personal Wishes Document that matches the requirements, and set up a basic FastAPI router."
-**What came back:** A solid initial schema, but it used `Optional[str]` for everything.
-**The Correction:** I rejected the generic `Optional` abstraction. In a conversational system, "missing" is fundamentally different from "not applicable". I had the AI implement a custom `FieldValue` wrapper to explicitly track states (`missing`, `unconfirmed`, `confirmed`, `not_applicable`).
-
-## 2. The "Sister" Bug (LLM Strictness)
-**What was asked:** "Set up the Gemini Extractor prompt to parse user intent into the structured patch schema."
-**What came back:** The initial prompt included the instruction: *"Only extract what the user actually said — NEVER infer, guess, or make up values. If they say something vague, do NOT guess."*
-**The Correction:** When testing with the input `"Maybe my sister"`, the AI completely dropped the data instead of patching it. Because Gemini 3.5 Flash Lite is extremely literal, "do NOT guess" caused it to discard partial information entirely. I had to explicitly correct the prompt to ensure it still extracts partial statements as `unconfirmed` instead of dropping them entirely.
-
-## 3. Pytest Relative Import Failures
-**What was asked:** "Write a suite of unit tests for the validator and engine logic using a dummy LLM client, and run pytest."
-**What came back:** A suite of 48 unit tests that looked perfectly correct on paper.
-**The Correction:** Running `pytest` on Windows failed immediately with `attempted relative import with no known parent package`. The AI had generated the test files in `backend/tests/` but forgot to make it a package. I had to instruct the AI to create `tests/__init__.py` and use absolute imports `from tests.dummy_client` to fix the module resolution path.
-
-## 4. FastAPI Module Shadowing in Tests
-**What was asked:** "Add integration tests for the API endpoints in `test_api.py`."
-**What came back:** The AI wrote `from app.main import app` at the top of the file, but later in a test function wrote `import app.main` to monkeypatch the LLM factory (`app.main._create_llm_client = ...`).
-**The Correction:** The second import overrode the global `app` variable, binding it to the module itself instead of the FastAPI instance, which broke `TestClient(app)`. I had the AI fix this scoping bug by importing the module with an alias: `from app import main as main_module`.
+This is a candid account of where AI tools (Google DeepMind Antigravity) were used during development, including where the first outputs were wrong and what had to be corrected. An honest, shorter log is worth more than a padded one.
 
 ---
 
 ## LLM Provider
 
-**Model:** Gemini 3.5 Flash Lite (`gemini-3.5-flash-lite`)  
-**SDK:** `google-genai` (Python)  
-**Provider selection:** Gemini was chosen for its structured output support (`response_schema` with Pydantic models), which makes the Extractor call far more reliable than parsing free-form JSON text.
+**Model:** Gemini 3.5 Flash Lite (`gemini-3.5-flash-lite`)
+**SDK:** `google-genai` (Python)
 
-## Prompts — Final Versions
+Gemini was chosen specifically for its `response_schema` support with Pydantic models. This makes the Extractor call structurally enforced rather than relying on parsing free-form JSON text, which is unreliable in practice.
 
-### Extractor System Prompt (Call A)
+---
+
+## Development Timeline: Where AI Was Used and Where It Failed
+
+### 1. Initial Schema Design
+
+**Asked:** Generate a Pydantic schema for a Personal Wishes Document and a basic FastAPI router.
+
+**What came back:** A working schema using `Optional[str]` for every field.
+
+**The problem:** In a conversational system, `None` is ambiguous — it conflates "not yet asked" with "user said it doesn't apply". I rejected this and had the AI implement a `FieldValue` wrapper tracking explicit states: `missing`, `unconfirmed`, `confirmed`, `not_applicable`. This distinction ended up being the backbone of the entire state machine.
+
+---
+
+### 2. The Single-Call LLM Approach (Abandoned)
+
+**Asked:** Build a single LLM call that extracts structured data and generates a response in one JSON blob.
+
+**What came back:** It worked on simple inputs. On complex turns it hallucinated. For example, the model would say *"I've noted your executor is James, your brother"* in the response text, but the extraction patch only contained `executor_name` — `executor_relationship` wasn't there. The user sees the response and believes both were captured. The state only has one.
+
+**The fix:** Split into two calls — Extractor and Responder. The Responder only ever sees *validated* state, never the raw extraction output. This completely eliminated the hallucination-in-conversation problem.
+
+---
+
+### 3. Extractor Prompt — Iteration 1 (Too Strict)
+
+**First version of the Extractor prompt included:**
+```
+Only extract what the user actually said — NEVER infer, guess, or make up values.
+If they say something vague, do NOT guess.
+```
+
+**What broke:** Tested with `"Maybe my sister"` as input for executor. The model completely dropped it — extracted nothing. Gemini 3.5 Flash Lite is very literal: "do NOT guess" was interpreted as "discard uncertain input". The field stayed `missing` and the system never followed up.
+
+**The fix:** Rewrote the rule to distinguish between *dropping* data and *flagging* it:
+```
+If a statement is clear and unambiguous, mark it "confirmed".
+If it's vague or partially stated (e.g. "maybe my sister"),
+you MUST STILL extract it with status "unconfirmed".
+Also return it as an ambiguity so the system asks a follow-up.
+Do not drop partial information.
+```
+
+---
+
+### 4. Extractor Prompt — Iteration 2 (Missing Context)
+
+The early Extractor didn't receive a `last_asked_field` parameter. Short answers like `"Yes"` broke disambiguation — the model couldn't tell if Yes meant `has_children=true` or `covers_worldwide_assets=true`.
+
+**Fix:** Added `last_asked_field` to the prompt context. Solved without any complex state tracking.
+
+---
+
+### 5. Responder Prompt — Asking Multiple Questions
+
+The initial Responder would ask 2-3 questions in a single turn: *"What's your name? And do you have an address?"*. This made extraction on the next turn unreliable because users often answered only one.
+
+**Fix:** Added an explicit constraint: *"Ask about ONE missing field at a time."*
+
+---
+
+### 6. Validator Catching a Model Contradiction
+
+**User message:** `"I have no kids, my son Tom is in school."`
+
+**Extractor output:**
+```json
+{
+  "patch": [
+    {"field": "has_children", "value": false, "status": "confirmed"},
+    {"field": "children_names", "value": ["Tom"], "status": "confirmed"}
+  ],
+  "ambiguities": []
+}
+```
+
+The prompt explicitly says to flag contradictions as ambiguities. The model didn't. It extracted both and left `ambiguities` empty.
+
+The business rule validator caught it: `children_names` cannot be set when `has_children` is `false`. It rejected the `children_names` patch item, generated an ambiguity internally, and the Responder asked: *"I want to make sure I understand — do you have children?"*
+
+This is the clearest demonstration of why the validator layer exists. Prompt instructions alone are not reliable enough for critical data integrity rules.
+
+---
+
+### 7. Pytest Infrastructure Failures on Windows
+
+**Asked:** Write 48 unit tests using a `DummyLLMClient` and run them.
+
+**What broke immediately:** `attempted relative import with no known parent package`. The AI generated tests in `backend/tests/` without creating `tests/__init__.py`, so Python didn't treat it as a package.
+
+**Fix:** Created `tests/__init__.py` and switched all imports to absolute (`from tests.dummy_client import ...`).
+
+**Second breakage in `test_api.py`:** The file had `from app.main import app` at the top, then later `import app.main` inside a test function to monkeypatch the LLM factory. The second import bound the name `app` to the module object, not the FastAPI instance. `TestClient(app)` silently broke.
+
+**Fix:** Alias the module import: `from app import main as main_module`, then patch `main_module._create_llm_client`.
+
+---
+
+## Final Prompt Versions (Verbatim)
+
+### Extractor System Prompt (Call A — Temperature 0.1)
 
 ```
 You are a precise data extraction assistant for a Personal Wishes Document intake system.
@@ -49,7 +128,7 @@ RULES:
 7. If the user provides contradictory info (e.g., "no kids" and "my son Tom"), flag as an ambiguity.
 ```
 
-### Responder System Prompt (Call B)
+### Responder System Prompt (Call B — Temperature 0.5)
 
 ```
 You are a warm, professional assistant helping someone create their Personal Wishes Document.
@@ -65,37 +144,10 @@ RULES:
 8. NEVER mention technical terms like "fields", "schema", "patches", or "status".
 ```
 
-## Prompt Iterations
+---
 
-### Iteration 1 — Combined Extraction + Response (abandoned)
+## What Was Not AI-Assisted
 
-Initial approach: single LLM call that extracts data AND generates a response in one JSON blob. **Problem:** The model frequently "hallucinated" field values in the conversational response that weren't actually in its structured extraction. For example, it would say "I've noted that your executor is James, your brother" in the response text, but the extraction patch only had `executor_name` without `executor_relationship`. The user sees the text and believes both were captured, but the structured state only has one.
-
-**Fix:** Split into two calls. The Responder only sees validated state, never its own raw extraction output. This completely eliminated the hallucination-in-conversation problem.
-
-### Iteration 2 — Extractor without `last_asked_field` (improved)
-
-Early Extractor prompt didn't receive the `last_asked_field` context. This caused problems with short answers like "Yes" — the model couldn't tell if "Yes" meant `has_children=true` or `covers_worldwide_assets=true`. Adding `last_asked_field` to the prompt disambiguated short answers without complex context tracking.
-
-### Iteration 3 — Responder asking multiple questions (constrained)
-
-Initially the Responder would ask 2-3 questions at once ("What's your name? And do you have an address?"). This made extraction harder on the next turn because the user might answer only one. Added explicit constraint: "Ask about ONE missing field at a time."
-
-## Example: Model Error Caught by Validator
-
-**User message:** "I have no kids, my son Tom is in school."
-
-**Extractor output:**
-```json
-{
-  "patch": [
-    {"field": "has_children", "value": false, "status": "confirmed"},
-    {"field": "children_names", "value": ["Tom"], "status": "confirmed"}
-  ],
-  "ambiguities": []
-}
-```
-
-**What happened:** The model extracted both `has_children=false` AND `children_names=["Tom"]` — a contradiction it didn't flag. Our business rule validator caught this: `children_names` provided but `has_children` is `false` → rejected the `children_names` patch item and generated an ambiguity. The Responder then asked the user to clarify: "I want to make sure I understand — do you have children?"
-
-This demonstrates why structural enforcement (validator layer) matters more than prompt instructions alone. The prompt says "flag contradictions as ambiguities," but the model failed to do so. The validator caught it anyway.
+- The decision to use two separate LLM calls (that came from observing the hallucination bug firsthand, not from a prompt)
+- The field-level confidence state model (`FieldValue` wrapper) — the AI's first output was wrong, this was a deliberate design correction
+- The validator business rules — written by hand to be deterministic and testable regardless of LLM output
