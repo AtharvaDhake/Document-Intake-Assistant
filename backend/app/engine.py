@@ -100,6 +100,13 @@ class ConversationEngine:
         for item, reason in validation.rejected:
             logger.warning(f"Rejected patch: {item.field}={item.value} — {reason}")
 
+        for ambig in all_ambiguities:
+            if hasattr(state.fields, ambig.field):
+                current_field = getattr(state.fields, ambig.field)
+                if current_field.status == FieldStatus.MISSING:
+                    current_field.status = FieldStatus.UNCONFIRMED
+                    current_field.last_updated = datetime.now(timezone.utc)
+
         self._handle_dependent_fields(state)
 
         correction_dicts = [

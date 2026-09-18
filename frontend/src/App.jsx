@@ -106,17 +106,19 @@ function App() {
       const patchedFields = (data.patch_applied || []).map(p => p.field);
       setLastPatchedFields(patchedFields);
 
+      // Fetch document if state changed BEFORE updating session to prevent stale text download
+      let newDocText = documentText;
+      if (data.state) {
+        const docData = await getDocument(session.session_id);
+        newDocText = docData.document_text;
+        setDocumentText(newDocText);
+      }
+
       setSession(prev => ({
         ...prev,
         state: data.state,
         conversation_log: [...prev.conversation_log, { role: 'assistant', content: data.assistant_message }]
       }));
-
-      // Fetch document if state changed
-      if (data.state) {
-        const docData = await getDocument(session.session_id);
-        setDocumentText(docData.document_text);
-      }
     } catch (err) {
       console.error("Failed to send message", err);
       setError("Failed to send message. Please try again.");
@@ -137,14 +139,15 @@ function App() {
     
     try {
       const data = await updateField(session.session_id, fieldName, value);
+      
+      const docData = await getDocument(session.session_id);
+      setDocumentText(docData.document_text);
+      
       setSession(prev => ({
         ...prev,
         state: data.state,
         conversation_log: [...prev.conversation_log, { role: 'assistant', content: data.assistant_message }]
       }));
-      
-      const docData = await getDocument(session.session_id);
-      setDocumentText(docData.document_text);
     } catch (err) {
       console.error("Failed to update field", err);
       setError(`Failed to update ${fieldName}. Please try again.`);
