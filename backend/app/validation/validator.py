@@ -28,27 +28,27 @@ class ValidationResult:
 
 
 def validate_patch(items: list[PatchItem], state: SessionState) -> ValidationResult:
-    result = ValidationResult()
+    outcome = ValidationResult()
 
     for item in items:
         if item.field not in VALID_FIELDS:
-            result.rejected.append((item, f"unknown field: {item.field}"))
+            outcome.rejected.append((item, f"unknown field: {item.field}"))
             continue
 
         type_error = _check_type(item)
         if type_error:
-            result.rejected.append((item, type_error))
+            outcome.rejected.append((item, type_error))
             continue
 
         biz_problem = _check_business_rules(item, state)
         if biz_problem:
-            result.ambiguities.append(biz_problem)
-            result.rejected.append((item, biz_problem.reason))
+            outcome.ambiguities.append(biz_problem)
+            outcome.rejected.append((item, biz_problem.reason))
             continue
 
         correction = _detect_correction(item, state)
         if correction:
-            result.corrections.append(correction)
+            outcome.corrections.append(correction)
             # Downgrade to unconfirmed — don't silently overwrite a previously set value.
             # The responder will acknowledge the change and the user can re-confirm.
             item = PatchItem(
@@ -56,9 +56,9 @@ def validate_patch(items: list[PatchItem], state: SessionState) -> ValidationRes
                 status="unconfirmed", reasoning=item.reasoning,
             )
 
-        result.accepted.append(item)
+        outcome.accepted.append(item)
 
-    return result
+    return outcome
 
 
 def _check_type(item: PatchItem) -> str | None:
