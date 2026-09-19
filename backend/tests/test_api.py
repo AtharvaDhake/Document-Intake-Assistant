@@ -2,13 +2,14 @@
 
 from fastapi.testclient import TestClient
 
-from app.main import app, _create_llm_client
+from app.main import app
+from app.store import create_llm_client_instance
 from tests.dummy_client import DummyLLMClient
 
-app.dependency_overrides[_create_llm_client] = DummyLLMClient
+app.dependency_overrides[create_llm_client_instance] = DummyLLMClient
 
-from app import main as main_module
-main_module._create_llm_client = lambda: DummyLLMClient()
+from app import store as store_module
+store_module.create_llm_client_instance = lambda: DummyLLMClient()
 
 client = TestClient(app)
 
